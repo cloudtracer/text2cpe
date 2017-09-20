@@ -1,5 +1,5 @@
 {
-  "name": "text2cve",
+  "name": "text2cpe",
   "version": "0.0.1",
   "description": "Reversed sorta implementation of ShoVAT project as described in white paper",
   "main": "index.js",
@@ -10,13 +10,22 @@
     "cve",
     "port scans"
   ],
-  "author": "threatpinch",
-  "license": "ISC",
+  "author": "development@threatpinch.com",
+  "license": "MIT",
   "dependencies": {
     "pcre-to-regexp": "0.0.4",
     "redis": "^2.6.2",
     "ssdeep.js": "0.0.2",
     "underscore": "^1.8.3",
     "xml2js": "^0.4.17"
-  }
+  },
+  "devDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cloudtracer/text2cpe.git"
+  },
+  "bugs": {
+    "url": "https://github.com/cloudtracer/text2cpe/issues"
+  },
+  "homepage": "https://github.com/cloudtracer/text2cpe#readme"
 }
