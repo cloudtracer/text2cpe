@@ -3,14 +3,6 @@ Author:         Development@ThreatPinch.com
 Description:    Reversed sorta implementation of CPE Name detection in ShoVAT based on research paper
 Original Paper: http://www.ibs.ro/~bela/Papers/SCN2015.pdf
 
-Run with:
-
-node index.js > ./out.csv
-
-Original CPEs loaded with the following one liner.
-
-cat cpe.csv | while read LINE; do TYPE=`echo $LINE | cut -d"," -f 2`;VENDOR=`echo $LINE | cut -d"," -f 3`;APP=`echo $LINE | cut -d"," -f 4`;VERSION=`echo $LINE | cut -d"," -f 5 | egrep -o '([0-9]+\.[0-9\.]*)' `;CPE=`echo $LINE | cut -d"," -f 9`;echo $TYPE, $VENDOR, $APP, $VERSION, $CPE;echo "SADD $TYPE-v-$VERSION $CPE";echo "SADD $TYPE-v-$VERSION $CPE" | redis-cli;done
-
 */
 
 var bluebird = require('bluebird');
@@ -19,11 +11,96 @@ var xml2js = require('xml2js');
 var fs = require('fs');
 var PCRE = require('pcre-to-regexp');
 var ssdeep = require('ssdeep.js');
+const cli_usage = require('command-line-usage');
+const cli_args = require('command-line-args');
 
+const base_path = __dirname;
+
+var results_write_stream;
+
+var option_list = [
+  {
+    name: 'input-file',
+    alias: 'i',
+    type: String,
+    typeLabel: '[underline]{file}',
+    description: 'Shodan or Censys file to read.'
+  },
+  {
+    name: 'output-file',
+    alias: 'o',
+    type: String,
+    typeLabel: '[underline]{file}',
+    description: 'Output file to save results.'
+  },
+  {
+    name: 'help',
+    alias: "h",
+    type: Boolean,
+    defaultOption: true,
+    description: 'Print this usage guide.'
+  }
+];
+
+var sections = [
+  {
+    header: 'Text2CPE',
+    content: 'Reads banners from Shodan or Censys.io scan results and attempts to match the banner to a particular CPE. Based on ShoVAT paper.'
+  },
+  {
+    header: 'Options',
+    optionList: option_list
+  },
+  {
+    header: 'Examples',
+    content: [
+      {
+        desc: 'Read file and save results',
+        example: '$ node text2cpe.js -i /my/path/to/input -o /my/path/to/output'
+      }
+    ]
+  },
+  {
+    content: 'Follow: @ThreatPinch for updates.'
+  }
+];
+
+var usage = cli_usage(sections);
 var nmapIdentification = {};
 
 var cpeHashes = {};
 
+
+function Main(){
+  args = cli_args(option_list, { partial: true });
+  const usage = cli_usage(sections);
+  //console.log(args);
+  if(args['help'] || Object.keys(args).length == 0 ){
+    console.log(usage);
+    return true;
+  }
+
+  if(!args['input-file'] || !args['output-file']){
+    console.log(usage);
+    console.log("Error: -i or -o not set.");
+
+  }
+  if(args['output-file']){
+    if(fs.existsSync(args['output-file'])){
+      console.warn("WARN: " + args['output-file'] + " already exists, overwriting...");
+      fs.unlinkSync(args['output-file']);
+    }
+    results_write_stream = require('fs').createWriteStream(args['output-file'],{ flags:'a' });
+  }
+
+  if(args['input-file']){
+     ProcessBanners(args['input-file'], results_write_stream);
+  }
+}
+
+function WriteToStream(line, stream){
+  stream.write(line +"\n");
+}
 
 function GetCPEVersionMatches(banner){
   var versionRegex = new RegExp("(\\d+\\.(\\d|\\.)*\\d+)","g"),
@@ -124,7 +201,7 @@ function ConvertNMAPMatching(line, counter){
 
 function LoadNMAPServiceProbes(){
   var lineReader = require('readline').createInterface({
-    input: require('fs').createReadStream('./cpe-nmap-probes.txt')
+    input: require('fs').createReadStream(base_path+ '/cpe-nmap-probes.txt')
   });
   var counter = 0;
   lineReader.on('line', function (line) {
@@ -137,14 +214,18 @@ function LoadNMAPServiceProbes(){
   })
 }
 
-function ProcessBanners(){
+function ProcessBanners(inputFile, results_write_stream){
   var lineReader = require('readline').createInterface({
-    //input: require('fs').createReadStream('./banner_files/ftp_trimmed_banners')
-    //input: require('fs').createReadStream('./banner_files/ssh_banners_uniq')
-    input: require('fs').createReadStream('./critical_201303_22.json')
-    //input: require('fs').createReadStream('./banner_files/critical_201303_21.json')
+    input: require('fs').createReadStream(inputFile)
 
   });
+  if(results_write_stream){
+    WriteToStream("\""+ "BEST MATCH CPE MATCH", "\",\"", "PRODUCT NAME WEIGHT", "\",\"",
+      "VERSION WEIGHT" +"\",\"", "LEAF DISTANCE", "\",\"",
+      "SUB LEAF DISTANCE"+"\",\""+"NMAP MATCH"+"\",\""+"BANNER" +"\",\"",
+      "BANNER HASH"+"\",\""+"CPE HASH"+"\",\""+"SIM" +"\"", results_write_stream);
+  }
+
   console.log("\""+ "BEST MATCH CPE MATCH", "\",\"", "PRODUCT NAME WEIGHT", "\",\"",
     "VERSION WEIGHT" +"\",\"", "LEAF DISTANCE", "\",\"",
     "SUB LEAF DISTANCE"+"\",\""+"NMAP MATCH"+"\",\""+"BANNER" +"\",\"",
@@ -154,21 +235,27 @@ function ProcessBanners(){
   lineReader.on('line', function (line) {
     //console.log('Line from file:', line);
     try {
-      JSON.parse(line);
+      line = JSON.parse(line);
     } catch(error) {
       isValidJSON = false;
     }
 
     if(isValidJSON){
-      line = JSON.parse(line);
-      line = line.banner;
+      if(line["_shodan"]){
+        //Shodan line result
+        line = line["_shodan"][data];
+      } else {
+        //Censys file
+        line = line.banner;
+      }
+      BannerToCPE(line.toLowerCase(), results_write_stream);
     }
-    BannerToCPE(line.toLowerCase());
+
     //process.exit()
   })
 }
 
-function BannerToCPE(banner){
+function BannerToCPE(banner, results_write_stream){
   var bannerMatching = {banner: banner, best_match: "none"};
   var products = [];
   //var versionProspects = GetBannerVersionMatches(banner);
@@ -227,6 +314,11 @@ function BannerToCPE(banner){
       var best_cpe_hash = cpeHashes[best_match['best_product_match']];
       var cpe_banner_similarity = best_match['best_similarity'];// 75
       //console.log(best_match['banner_keys']);
+      WriteToStream("\""+ encodeURI(best_match['best_product_match'])+ "\",\"" +encodeURI(best_match['best_product_weight']) +"\",\""+
+        encodeURI(best_match['best_product_version_weight']) +"\",\""+ encodeURI(best_match['best_product_leaf_diff'])+"\",\"" +
+        encodeURI(best_match['best_product_sub_leaf_diff'])+"\",\""+ encodeURI(nmapMatch)+"\",\"",bannerMatching.banner +"\",\"" +
+        banner_hash +"\",\""+ best_cpe_hash+"\",\"" + cpe_banner_similarity  +"\"", results_write_stream);
+
       console.log("\""+ encodeURI(best_match['best_product_match'])+ "\",\"" +encodeURI(best_match['best_product_weight']) +"\",\""+
         encodeURI(best_match['best_product_version_weight']) +"\",\""+ encodeURI(best_match['best_product_leaf_diff'])+"\",\"" +
         encodeURI(best_match['best_product_sub_leaf_diff'])+"\",\""+ encodeURI(nmapMatch)+"\",\"",bannerMatching.banner +"\",\"" +
@@ -510,7 +602,7 @@ var CPEVersionList = {};
 LoadNMAPServiceProbes();
 
 var cpeReader = require('readline').createInterface({
- input: require('fs').createReadStream('./uniq-cpes.txt')
+ input: require('fs').createReadStream(base_path+ '/uniq-cpes.txt')
 });
 cpeReader.on('line', function (line) {
    var cpeName = line;
@@ -571,7 +663,7 @@ cpeReader.on('line', function (line) {
      //process.exit()
    }).on('close', function() {
      //LoadNMAPServiceProbes();
-     ProcessBanners();
+     Main();
 
      //console.log(JSON.stringify(CPEVersionList['1.3.4']))
    });
