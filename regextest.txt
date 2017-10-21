@@ -1,0 +1,9 @@
+ls | while read FILE; do zgrep -E "(
+/webcam_login
+|/httpapi?GetUserLevel&ipAddress=
+|/admin.cgi?0
+|/user.set?name=|
+/index.php/auth/login_confirm
+|/control/userimage.html
+|/imageset.htm
+)" $FILE; done

@@ -234,7 +234,9 @@ function ConvertRecogMatching(line, counter){
     var regex_go = regex_tmp.substring(1, regex_tmp.length-1);
     //console.log("Orig Regex:", regBits[1]);
     //var regex = convertNMAPRegexToJavascriptRegex(regBits[1]);
-    var regex = "%"+convertNMAPRegexToJavascriptRegex(regex_go)+"%ig";
+    var regex = "%"+convertNMAPRegexToJavascriptRegex(regex_go).toLowerCase()+"%ig";
+    //var regex = convertNMAPRegexToJavascriptRegex(regex_go);
+
     //console.log("Regex:", regex.trim());
     var tag_temp = bits[1].trim();
     var tag_go = tag_temp.substring(1, tag_temp.length-1).replaceAll(" ", "_");
@@ -244,8 +246,8 @@ function ConvertRecogMatching(line, counter){
       var Regex = PCRE(regex, rkeys);
       recogIdentification[counter] = {"new": regex.trim(), "tags": tag_go};
     } catch(err){
-      //console.error("ConvertRecogMatching PCRE Regex Error:", regex);
-      //console.error("ConvertRecogMatching PCRE Regex Error:", err);
+      console.error("ConvertRecogMatching PCRE Regex Error:", regex);
+      console.error("ConvertRecogMatching PCRE Regex Error:", err);
     }
 
   }
@@ -441,6 +443,7 @@ function BannerToCPE(banner, results_write_stream, otherMatch){
         //console.log("Orig Regex:", nmapIdentification[prop]["orig"]);
         //console.log("Attempting Regex:", nmapIdentification[prop]["new"]);
         var Regex = PCRE(recogIdentification[prop]["new"], "gi");
+        //var Regex = new RegExp(recogIdentification[prop]["new"], "gi")
 
         while(thisMatch = Regex.exec(banner)){
           //console.log(thisMatch);
