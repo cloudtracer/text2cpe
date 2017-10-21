@@ -1,6 +1,6 @@
 {
   "name": "text2cpe",
-  "version": "0.0.1",
+  "version": "0.0.3",
   "description": "Reversed sorta implementation of ShoVAT project as described in white paper",
   "main": "text2cpe",
   "scripts": {

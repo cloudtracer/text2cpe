@@ -68,6 +68,8 @@ var sections = [
 
 var usage = cli_usage(sections);
 var nmapIdentification = {};
+var ztagIdentification = {};
+var recogIdentification = {};
 
 var cpeHashes = {};
 
@@ -200,6 +202,55 @@ function ConvertNMAPMatching(line, counter){
   }
 }
 
+
+function ConvertZtagMatching(line, counter){
+  var bits = line.split("::DELIM::");
+  if(bits.length > 1){
+    var regex_tmp = bits[0].trim();
+    var regex_go = regex_tmp.substring(1, regex_tmp.length-1);
+    //console.log("Orig Regex:", regBits[1]);
+    //var regex = convertNMAPRegexToJavascriptRegex(regBits[1]);
+    var regex = "%"+convertNMAPRegexToJavascriptRegex(regex_go)+"%ig";
+    //console.log("Regex:", regex.trim());
+    var tag_temp = bits[1].trim();
+    var tag_go = tag_temp.substring(1, tag_temp.length-1);
+    var rkeys = [];
+
+    try{
+      var Regex = PCRE(regex, rkeys);
+      ztagIdentification[counter] = {"new": regex.trim(), "tags": tag_go};
+    } catch(err){
+      console.error("ConvertZtagMatching PCRE Regex Error:", regex);
+      console.error("ConvertZtagMatching PCRE Regex Error:", err);
+    }
+
+  }
+}
+
+function ConvertRecogMatching(line, counter){
+  var bits = line.split("::DELIM::");
+  if(bits.length > 1){
+    var regex_tmp = bits[0].trim();
+    var regex_go = regex_tmp.substring(1, regex_tmp.length-1);
+    //console.log("Orig Regex:", regBits[1]);
+    //var regex = convertNMAPRegexToJavascriptRegex(regBits[1]);
+    var regex = "%"+convertNMAPRegexToJavascriptRegex(regex_go)+"%ig";
+    //console.log("Regex:", regex.trim());
+    var tag_temp = bits[1].trim();
+    var tag_go = tag_temp.substring(1, tag_temp.length-1).replaceAll(" ", "_");
+    var rkeys = [];
+
+    try{
+      var Regex = PCRE(regex, rkeys);
+      recogIdentification[counter] = {"new": regex.trim(), "tags": tag_go};
+    } catch(err){
+      //console.error("ConvertRecogMatching PCRE Regex Error:", regex);
+      //console.error("ConvertRecogMatching PCRE Regex Error:", err);
+    }
+
+  }
+}
+
 function LoadNMAPServiceProbes(){
   var lineReader = require('readline').createInterface({
     input: require('fs').createReadStream(base_path+ '/cpe-nmap-probes.txt')
@@ -209,6 +260,36 @@ function LoadNMAPServiceProbes(){
     //console.log('Line from file:', line);
     //BannerToCPE(line.toLowerCase());
     ConvertNMAPMatching(line, counter);
+    counter++;
+
+    //process.exit()
+  })
+}
+
+function LoadZtagRegex(){
+  var lineReader = require('readline').createInterface({
+    input: require('fs').createReadStream(base_path+ '/ztag_regexes.txt')
+  });
+  var counter = 0;
+  lineReader.on('line', function (line) {
+    //console.log('Line from file:', line);
+    //BannerToCPE(line.toLowerCase());
+    ConvertZtagMatching(line, counter);
+    counter++;
+
+    //process.exit()
+  })
+}
+
+function LoadRecogRegex(){
+  var lineReader = require('readline').createInterface({
+    input: require('fs').createReadStream(base_path+ '/recog_regexes.txt')
+  });
+  var counter = 0;
+  lineReader.on('line', function (line) {
+    //console.log('Line from file:', line);
+    //BannerToCPE(line.toLowerCase());
+    ConvertRecogMatching(line, counter);
     counter++;
 
     //process.exit()
@@ -229,7 +310,7 @@ function ProcessBanners(inputFile, results_write_stream){
 
   var outline = "\""+ "BEST MATCH CPE MATCH" + "\",\"" + "PRODUCT NAME WEIGHT" + "\",\"" +
     "VERSION WEIGHT" +"\",\"" + "LEAF DISTANCE" + "\",\"" +
-    "SUB LEAF DISTANCE"+"\",\""+"NMAP MATCH"+"\",\""+"BANNER" +"\",\"" +
+    "SUB LEAF DISTANCE"+"\",\""+"OTHER MATCH+\",\""+"NMAP MATCH"+"\",\""+"BANNER" +"\",\"" +
     "BANNER HASH"+"\", \""+"CPE HASH"+"\",\""+"SIM" +"\"";
   if(results_write_stream){
     WriteToStream(outline, results_write_stream);
@@ -239,6 +320,7 @@ function ProcessBanners(inputFile, results_write_stream){
   var isValidJSON = true;
   lineReader.on('line', function (line) {
     //console.log('Line from file:', line);
+    var otherMatch = "";
     try {
       line = JSON.parse(line);
     } catch(error) {
@@ -249,7 +331,9 @@ function ProcessBanners(inputFile, results_write_stream){
       if(line["_shodan"]){
         //Shodan line result
         if(line['data']){
+          otherMatch = line['cpe'] ? "SHODAN:" + line['cpe']: "";
           line = line['data'];
+
         }
       } else {
         //Censys file
@@ -257,7 +341,7 @@ function ProcessBanners(inputFile, results_write_stream){
       }
       if(line && typeof line == 'string' && line != ''){
         line = line.substring(0, 512);
-        BannerToCPE(line.toLowerCase(), results_write_stream);
+        BannerToCPE(line.toLowerCase(), results_write_stream, otherMatch);
       }
     }
 
@@ -265,7 +349,7 @@ function ProcessBanners(inputFile, results_write_stream){
   })
 }
 
-function BannerToCPE(banner, results_write_stream){
+function BannerToCPE(banner, results_write_stream, otherMatch){
   var bannerMatching = {banner: banner, best_match: "none"};
   var products = [];
   //var versionProspects = GetBannerVersionMatches(banner);
@@ -298,7 +382,7 @@ function BannerToCPE(banner, results_write_stream){
       try{
         //console.log("Orig Regex:", nmapIdentification[prop]["orig"]);
         //console.log("Attempting Regex:", nmapIdentification[prop]["new"]);
-        var Regex = PCRE(nmapIdentification[prop]["new"], "g");
+        var Regex = PCRE(nmapIdentification[prop]["new"], "gi");
 
         while(thisMatch = Regex.exec(banner)){
           //console.log(thisMatch);
@@ -318,15 +402,53 @@ function BannerToCPE(banner, results_write_stream){
 
 
     }
+    var ztagMatch = "";
+    for(var prop in ztagIdentification){
+      try{
+        //console.log("Orig Regex:", nmapIdentification[prop]["orig"]);
+        //console.log("Attempting Regex:", nmapIdentification[prop]["new"]);
+        var Regex = PCRE(ztagIdentification[prop]["new"], "gi");
+
+        while(thisMatch = Regex.exec(banner)){
+          //console.log(thisMatch);
+          otherMatch += " ZTAG:" + ztagIdentification[prop]["tags"] + " ";
+        }
+      } catch(err){
+        console.error("ZTAG Regex Error:", err);
+        console.error("ZTAG Regex:", ztagIdentification[prop]["new"]);
+      }
+
+
+    }
+
+    for(var prop in recogIdentification){
+      try{
+        //console.log("Orig Regex:", nmapIdentification[prop]["orig"]);
+        //console.log("Attempting Regex:", nmapIdentification[prop]["new"]);
+        var Regex = PCRE(recogIdentification[prop]["new"], "gi");
+
+        while(thisMatch = Regex.exec(banner)){
+          //console.log(thisMatch);
+          otherMatch += " RECOG:" + recogIdentification[prop]["tags"] + " ";
+        }
+      } catch(err){
+        console.error("Recog Regex Error:", err);
+        console.error("Recog Regex:", recogIdentification[prop]["new"]);
+      }
+
+
+    }
     if(best_match['best_product_match'] || nmapMatch != ""){
       //console.log(best_match['banner_keys']);
 
       var best_cpe_hash = cpeHashes[best_match['best_product_match']];
       var cpe_banner_similarity = best_match['best_similarity'];// 75
+      //var ztag_match = CheckZTag(bannerMatching.banner);
+      //otherMatch += " " + ztag_match;
       //console.log(best_match['banner_keys']);
       var outline = "\""+ SafeEncode(best_match['best_product_match'])+ "\",\"" +SafeEncode(best_match['best_product_weight']) +"\",\""+
         SafeEncode(best_match['best_product_version_weight']) +"\",\""+ SafeEncode(best_match['best_product_leaf_diff'])+"\",\"" +
-        SafeEncode(best_match['best_product_sub_leaf_diff'])+"\",\""+ SafeEncode(nmapMatch)+"\",\"" +SafeEncode(bannerMatching.banner) +"\",\"" +
+        SafeEncode(best_match['best_product_sub_leaf_diff'])+"\",\""+ SafeEncode(otherMatch)+"\",\""+ SafeEncode(nmapMatch)+"\",\"" +SafeEncode(bannerMatching.banner) +"\",\"" +
         SafeEncode(banner_hash) +"\",\""+ SafeEncode(best_cpe_hash)+"\",\"" + SafeEncode(cpe_banner_similarity)  +"\"";
       WriteToStream(outline, results_write_stream);
 
@@ -620,6 +742,8 @@ function ConvertCPEToArray(name){
 
 var CPEVersionList = {};
 LoadNMAPServiceProbes();
+LoadZtagRegex();
+LoadRecogRegex();
 
 var cpeReader = require('readline').createInterface({
  input: require('fs').createReadStream(base_path+ '/uniq-cpes.txt')
