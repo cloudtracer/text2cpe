@@ -17,6 +17,7 @@ const zlib = require('zlib');
 
 const base_path = __dirname;
 
+var ASSIGNED_PORT = "";
 var results_write_stream;
 
 var option_list = [
@@ -33,6 +34,13 @@ var option_list = [
     type: String,
     typeLabel: '[underline]{file}',
     description: 'Output file to save results.'
+  },
+  {
+    name: 'port',
+    alias: 'p',
+    type: String,
+    typeLabel: '[underline]{Port Number}',
+    description: 'Assign Port Number (for Censys scans)'
   },
   {
     name: 'help',
@@ -87,6 +95,9 @@ function Main(){
     console.log(usage);
     console.log("Error: -i or -o not set.");
 
+  }
+  if(args['port']){
+    ASSIGNED_PORT = args['port'];
   }
   if(args['output-file']){
     if(fs.existsSync(args['output-file'])){
@@ -310,7 +321,7 @@ function ProcessBanners(inputFile, results_write_stream){
     });
   }
 
-  var outline = "\""+ "BEST MATCH CPE MATCH" + "\",\"" + "PRODUCT NAME WEIGHT" + "\",\"" +
+  var outline = "\""+ "IP" + "\",\"" + "PORT" + "\",\"" + "BEST MATCH CPE MATCH" + "\",\"" + "PRODUCT NAME WEIGHT" + "\",\"" +
     "VERSION WEIGHT" +"\",\"" + "LEAF DISTANCE" + "\",\"" +
     "SUB LEAF DISTANCE"+"\",\""+"OTHER MATCH\",\""+"NMAP MATCH"+"\",\""+
     "BANNER HASH"+"\", \""+"BANNER" +"\"";
@@ -320,6 +331,8 @@ function ProcessBanners(inputFile, results_write_stream){
 
   console.log(outline);
   var isValidJSON = true;
+  var ip;
+  var port;
   lineReader.on('line', function (line) {
     //console.log('Line from file:', line);
     var otherMatch = "";
@@ -334,11 +347,15 @@ function ProcessBanners(inputFile, results_write_stream){
         //Shodan line result
         if(line['data']){
           otherMatch = line['cpe'] ? "SHODAN:" + line['cpe']: "";
+          ip = line['ip'];
+          port = line['port'];
           line = line['data'];
 
         }
       } else {
         if(line['banner']){
+          ip = line.ip;
+          port = ASSIGNED_PORT;
           line = line.banner;
         } else {
           if(line['matches']){
@@ -347,8 +364,10 @@ function ProcessBanners(inputFile, results_write_stream){
               var match_line = line['matches'][i];
               if(match_line['_shodan']){
                 if(match_line['data'] && typeof match_line['data'] == 'string' && match_line['data'] != ""){
+                  ip = match_line['ip'];
+                  port = match_line['port'];
                   match_line = match_line['data'].substring(0, 512);
-                  BannerToCPE(match_line.toLowerCase(), results_write_stream, otherMatch);
+                  BannerToCPE(match_line.toLowerCase(), results_write_stream, otherMatch, ip, port);
                 }
               }
             }
@@ -358,7 +377,7 @@ function ProcessBanners(inputFile, results_write_stream){
       }
       if(line && typeof line == 'string' && line != ''){
         line = line.substring(0, 512);
-        BannerToCPE(line.toLowerCase(), results_write_stream, otherMatch);
+        BannerToCPE(line.toLowerCase(), results_write_stream, otherMatch, ip, port);
       }
     }
 
@@ -366,7 +385,7 @@ function ProcessBanners(inputFile, results_write_stream){
   })
 }
 
-function BannerToCPE(banner, results_write_stream, otherMatch){
+function BannerToCPE(banner, results_write_stream, otherMatch, ip, port){
   var bannerMatching = {banner: banner, best_match: "none"};
   var products = [];
   //var versionProspects = GetBannerVersionMatches(banner);
@@ -464,7 +483,7 @@ function BannerToCPE(banner, results_write_stream, otherMatch){
       //var ztag_match = CheckZTag(bannerMatching.banner);
       //otherMatch += " " + ztag_match;
       //console.log(best_match['banner_keys']);
-      var outline = "\""+ SafeEncode(best_match['best_product_match'])+ "\",\"" +SafeEncode(best_match['best_product_weight']) +"\",\""+
+      var outline = "\""+ +SafeEncode(ip) +"\",\""+ +SafeEncode(port) +"\",\""+SafeEncode(best_match['best_product_match'])+ "\",\"" +SafeEncode(best_match['best_product_weight']) +"\",\""+
         SafeEncode(best_match['best_product_version_weight']) +"\",\""+ SafeEncode(best_match['best_product_leaf_diff'])+"\",\"" +
         SafeEncode(best_match['best_product_sub_leaf_diff'])+"\",\""+ SafeEncode(otherMatch)+"\",\""+ SafeEncode(nmapMatch)+"\",\"" +
         SafeEncode(banner_hash) +"\",\"" + SafeEncode(bannerMatching.banner)  +"\"";
