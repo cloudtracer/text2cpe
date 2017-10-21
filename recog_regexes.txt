@@ -1674,7 +1674,7 @@
 "OpenSSH_(.*) in DesktopAuthority (.*)" ::DELIM::  "DesktopAuthority SSH"
 "OpenSSH_(\d+\.\d+(\.\d+)?(p\d+)?) ((PKIX\s+)?FIPS)" ::DELIM::  "OpenSSH with a version and FIPS mode enabled"
 "OpenSSH_(\d+\.\d+(\.\d+)?(p\d+)?)" ::DELIM::  "OpenSSH with just a version, no comment by vendor"
-"OpenSSH_?([^\s]*)\s*(.*)" ::DELIM::  "Catch all for OpenSSH based SSH servers",
+"OpenSSH_?([^\s]*)\s*(.*)" ::DELIM::  "Catch all for OpenSSH based SSH servers"
 "^Cisco-(.*)" ::DELIM::  "Cisco SSH banner (could be IOS or PIX).
 "CISCO_WLC" ::DELIM::  "SSH banner from a Cisco Wireless LAN Controller (WLC)"
 "Sun_SSH_(.*)" ::DELIM::  "Sun SSH banner"

@@ -17,8 +17,11 @@ const zlib = require('zlib');
 
 const base_path = __dirname;
 
+var SHOW_STDOUT = true;
 var ASSIGNED_PORT = "";
 var results_write_stream;
+
+
 
 var option_list = [
   {
@@ -34,6 +37,13 @@ var option_list = [
     type: String,
     typeLabel: '[underline]{file}',
     description: 'Output file to save results.'
+  },
+  {
+    name: 'silent',
+    alias: 's',
+    type: Boolean,
+    typeLabel: '[underline]{Silent Mode}',
+    description: 'Silent run, no console display (Default: false)'
   },
   {
     name: 'port',
@@ -98,6 +108,9 @@ function Main(){
   }
   if(args['port']){
     ASSIGNED_PORT = args['port'];
+  }
+  if(args['silent']){
+    SHOW_STDOUT = false;
   }
   if(args['output-file']){
     if(fs.existsSync(args['output-file'])){
@@ -328,8 +341,7 @@ function ProcessBanners(inputFile, results_write_stream){
   if(results_write_stream){
     WriteToStream(outline, results_write_stream);
   }
-
-  console.log(outline);
+  if(SHOW_STDOUT) console.log(outline);
   var isValidJSON = true;
   var ip;
   var port;
@@ -353,10 +365,17 @@ function ProcessBanners(inputFile, results_write_stream){
 
         }
       } else {
-        if(line['banner']){
-          ip = line.ip;
+        if(line['banner'] || (line['data']['telnet']) || (line['data']['banner'])){
+          //Old and new Censys formats
+          // TODO look at all new data types...
+          if(line['error']) return;
+          ip = line['ip'];
           port = ASSIGNED_PORT;
-          line = line.banner;
+          if(line['data'] && line['data']['telnet'] && line['data']['telnet']['banner']){
+            line = line['data']['telnet']['banner'];
+          } else {
+            line = line['banner'] ? line['banner'] : line['data']['banner'];
+          }
         } else {
           if(line['matches']){
             var matches_length = line['matches'].length;
@@ -483,13 +502,13 @@ function BannerToCPE(banner, results_write_stream, otherMatch, ip, port){
       //var ztag_match = CheckZTag(bannerMatching.banner);
       //otherMatch += " " + ztag_match;
       //console.log(best_match['banner_keys']);
-      var outline = "\""+ +SafeEncode(ip) +"\",\""+ +SafeEncode(port) +"\",\""+SafeEncode(best_match['best_product_match'])+ "\",\"" +SafeEncode(best_match['best_product_weight']) +"\",\""+
+      var outline = "\""+ SafeEncode(ip) +"\",\""+ SafeEncode(port) +"\",\""+SafeEncode(best_match['best_product_match'])+ "\",\"" +SafeEncode(best_match['best_product_weight']) +"\",\""+
         SafeEncode(best_match['best_product_version_weight']) +"\",\""+ SafeEncode(best_match['best_product_leaf_diff'])+"\",\"" +
         SafeEncode(best_match['best_product_sub_leaf_diff'])+"\",\""+ SafeEncode(otherMatch)+"\",\""+ SafeEncode(nmapMatch)+"\",\"" +
         SafeEncode(banner_hash) +"\",\"" + SafeEncode(bannerMatching.banner)  +"\"";
       WriteToStream(outline, results_write_stream);
 
-      console.log(outline);
+      if(SHOW_STDOUT) console.log(outline);
     }
     /*
     for(var prop in bannerMatching){
