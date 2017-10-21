@@ -310,7 +310,7 @@ function ProcessBanners(inputFile, results_write_stream){
 
   var outline = "\""+ "BEST MATCH CPE MATCH" + "\",\"" + "PRODUCT NAME WEIGHT" + "\",\"" +
     "VERSION WEIGHT" +"\",\"" + "LEAF DISTANCE" + "\",\"" +
-    "SUB LEAF DISTANCE"+"\",\""+"OTHER MATCH+\",\""+"NMAP MATCH"+"\",\""+
+    "SUB LEAF DISTANCE"+"\",\""+"OTHER MATCH\",\""+"NMAP MATCH"+"\",\""+
     "BANNER HASH"+"\", \""+"BANNER" +"\"";
   if(results_write_stream){
     WriteToStream(outline, results_write_stream);
@@ -336,8 +336,23 @@ function ProcessBanners(inputFile, results_write_stream){
 
         }
       } else {
-        //Censys file
-        line = line.banner;
+        if(line['banner']){
+          line = line.banner;
+        } else {
+          if(line['matches']){
+            var matches_length = line['matches'].length;
+            for(var i =0; i < matches_length; i++){
+              var match_line = line['matches'][i];
+              if(match_line['_shodan']){
+                if(match_line['data'] && typeof match_line['data'] == 'string' && match_line['data'] != ""){
+                  match_line = match_line['data'].substring(0, 512);
+                  BannerToCPE(match_line.toLowerCase(), results_write_stream, otherMatch);
+                }
+              }
+            }
+          }
+        }
+
       }
       if(line && typeof line == 'string' && line != ''){
         line = line.substring(0, 512);

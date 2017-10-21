@@ -30,3 +30,10 @@ Examples
 ```
 
 Here is some [sample CSV output](https://github.com/cloudtracer/text2cpe/blob/master/sample.csv) from the first few lines of the file.
+
+Link to NPM package: [text2cpe](https://www.npmjs.com/package/text2cpe)
+
+Install with the following command:
+```
+npm install --save text2cpe
+```
