@@ -11,7 +11,7 @@
     "port scans"
   ],
   "author": "development@threatpinch.com",
-  "license": "MIT",
+  "license": "GPLv3",
   "dependencies": {
     "bluebird": "^3.5.1",
     "command-line-args": "^4.0.7",
