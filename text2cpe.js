@@ -310,8 +310,8 @@ function ProcessBanners(inputFile, results_write_stream){
 
   var outline = "\""+ "BEST MATCH CPE MATCH" + "\",\"" + "PRODUCT NAME WEIGHT" + "\",\"" +
     "VERSION WEIGHT" +"\",\"" + "LEAF DISTANCE" + "\",\"" +
-    "SUB LEAF DISTANCE"+"\",\""+"OTHER MATCH+\",\""+"NMAP MATCH"+"\",\""+"BANNER" +"\",\"" +
-    "BANNER HASH"+"\", \""+"CPE HASH"+"\",\""+"SIM" +"\"";
+    "SUB LEAF DISTANCE"+"\",\""+"OTHER MATCH+\",\""+"NMAP MATCH"+"\",\""+
+    "BANNER HASH"+"\", \""+"BANNER" +"\"";
   if(results_write_stream){
     WriteToStream(outline, results_write_stream);
   }
@@ -367,10 +367,10 @@ function BannerToCPE(banner, results_write_stream, otherMatch){
       //bannerMatching[versionProspects[i]] = {};
     }
   }*/
-  var uniq_regex = RegExp(/(\b\w\b)(?!.*\b\1\b)/gi);
-  var regbits = uniq_regex.exec(banner);
-  var banner_hash = "";
-  if(regbits && regbits.length > 1) {banner_words = regbits.join(" ");banner_hash = ssdeep.digest(banner_words);}
+  //var uniq_regex = RegExp(/(\b\w\b)(?!.*\b\1\b)/gi);
+  //var regbits = uniq_regex.exec(banner);
+  var banner_hash = ssdeep.digest(banner);
+  //if(regbits && regbits.length > 1) {banner_words = regbits.join(" ");banner_hash = ssdeep.digest(banner_words);}
 
 
   if(versionProspects && versionProspects.length > 0){
@@ -441,15 +441,15 @@ function BannerToCPE(banner, results_write_stream, otherMatch){
     if(best_match['best_product_match'] || nmapMatch != ""){
       //console.log(best_match['banner_keys']);
 
-      var best_cpe_hash = cpeHashes[best_match['best_product_match']];
-      var cpe_banner_similarity = best_match['best_similarity'];// 75
+      //var best_cpe_hash = cpeHashes[best_match['best_product_match']];
+      //var cpe_banner_similarity = best_match['best_similarity'];// 75
       //var ztag_match = CheckZTag(bannerMatching.banner);
       //otherMatch += " " + ztag_match;
       //console.log(best_match['banner_keys']);
       var outline = "\""+ SafeEncode(best_match['best_product_match'])+ "\",\"" +SafeEncode(best_match['best_product_weight']) +"\",\""+
         SafeEncode(best_match['best_product_version_weight']) +"\",\""+ SafeEncode(best_match['best_product_leaf_diff'])+"\",\"" +
-        SafeEncode(best_match['best_product_sub_leaf_diff'])+"\",\""+ SafeEncode(otherMatch)+"\",\""+ SafeEncode(nmapMatch)+"\",\"" +SafeEncode(bannerMatching.banner) +"\",\"" +
-        SafeEncode(banner_hash) +"\",\""+ SafeEncode(best_cpe_hash)+"\",\"" + SafeEncode(cpe_banner_similarity)  +"\"";
+        SafeEncode(best_match['best_product_sub_leaf_diff'])+"\",\""+ SafeEncode(otherMatch)+"\",\""+ SafeEncode(nmapMatch)+"\",\"" +
+        SafeEncode(banner_hash) +"\",\"" + SafeEncode(bannerMatching.banner)  +"\"";
       WriteToStream(outline, results_write_stream);
 
       console.log(outline);
@@ -652,7 +652,6 @@ function BestMatchByProduct(versionProspects, bannerMatching, banner, banner_has
         bannerMatching[versionProspects[i]]['product_cpe_weights'][cpe]['version_weight'] = version_weight;
         bannerMatching[versionProspects[i]]['product_cpe_weights'][cpe]['vendor_weight'] = vendor_weight;
         bannerMatching[versionProspects[i]]['product_cpe_weights'][cpe]['banner_keys'] = banner_keys2;
-        bannerMatching[versionProspects[i]]['product_cpe_weights'][cpe]['sim'] = sim;
 
         var leaf_diff = (leaf_position - version_position) ;
         if (leaf_diff < 0){
@@ -761,11 +760,11 @@ cpeReader.on('line', function (line) {
      var temp = cpeBits[3].split("_");
      //if(temp.constructor === Array) cpeBits[3] = temp.join(" ");
      //cpeHashes[cpeName] = ssdeep.digest(cpeBits[3]);
-
+     /*
      cpeHashes[cpeName] = ssdeep.digest((Array.isArray(cpeBits[3]) ? cpeBits[3].join(" ") : cpeBits[3]) +
       (Array.isArray(cpeBits[4]) ? cpeBits[4].join(" ") : cpeBits[4]) +
       (Array.isArray(cpeBits[5]) ? cpeBits[5].join(" ") : cpeBits[5]));
-
+      */
      //console.log(versionProspects);
      if(cpeBits[1] == "/a" || cpeBits[1] == "/o"){
        if(version.length > 1){
