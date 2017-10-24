@@ -1,6 +1,6 @@
 {
   "name": "text2cpe",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "description": "Reversed sorta implementation of ShoVAT project as described in white paper. Adds additional context with regex rules from numerous projects.",
   "main": "text2cpe",
   "scripts": {
