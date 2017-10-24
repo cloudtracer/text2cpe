@@ -174,6 +174,16 @@ function escapeRegExp(str) {
   return str.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&");
 }
 
+function remove_non_ascii(str) {
+
+  if ((str===null) || (str==='') || str ===undefined)
+       return false;
+ else
+   str = str.toString();
+
+  return str.replace(/[^A-Za-z 0-9 \r\n.,\?""!@#\$%\^&\*\(\)-_=\+;:<>\/\\\|\}\{\[\]`~\n\t]*/g, '')
+}
+
 function convertNMAPRegexToJavascriptRegex(str) {
   /*
   str = str.replace(/\\d/g, "\\\\d");
@@ -357,6 +367,7 @@ function ProcessBanners(inputFile, results_write_stream){
     if(isValidJSON){
       if(line["_shodan"]){
         //Shodan line result
+        //console.error("Shodan File!");
         if(line['data']){
           otherMatch = line['cpe'] ? "SHODAN:" + line['cpe']: "";
           ip = line['ip'];
@@ -365,23 +376,30 @@ function ProcessBanners(inputFile, results_write_stream){
 
         }
       } else {
-        if(line['banner'] || (line['data']['telnet']) || (line['data']['banner'])){
+        if(line['banner'] || (line['data'] && line['data']['telnet']) || (line['data'] && line['data']['banner']) || (line['data'] &&  line['data']['xssh'])){
           //Old and new Censys formats
           // TODO look at all new data types...
+          //console.error("Censys file!");
           if(line['error']) return;
           ip = line['ip'];
           port = ASSIGNED_PORT;
           if(line['data'] && line['data']['telnet'] && line['data']['telnet']['banner']){
             line = line['data']['telnet']['banner'];
+          } else if(line['data'] && line['data']['xssh'] && line['data']['xssh']["server_id"]){
+            line = line['data']['xssh']["server_id"]['raw'];
           } else {
             line = line['banner'] ? line['banner'] : line['data']['banner'];
           }
+          line = remove_non_ascii(line);
         } else {
+          //console.error("maybe shodan array?!");
           if(line['matches']){
+            //console.error("Shodan Array File!");
             var matches_length = line['matches'].length;
             for(var i =0; i < matches_length; i++){
               var match_line = line['matches'][i];
               if(match_line['_shodan']){
+                //console.log("shodan line!")
                 if(match_line['data'] && typeof match_line['data'] == 'string' && match_line['data'] != ""){
                   ip = match_line['ip'];
                   port = match_line['port'];
@@ -801,7 +819,7 @@ LoadZtagRegex();
 LoadRecogRegex();
 
 var cpeReader = require('readline').createInterface({
- input: require('fs').createReadStream(base_path+ '/uniq-cpes.txt')
+ input: require('fs').createReadStream(base_path+ '/uniq_cpe_applications.txt')
 });
 cpeReader.on('line', function (line) {
    var cpeName = line;
