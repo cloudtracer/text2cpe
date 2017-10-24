@@ -376,7 +376,11 @@ function ProcessBanners(inputFile, results_write_stream){
 
         }
       } else {
-        if(line['banner'] || (line['data'] && line['data']['telnet']) || (line['data'] && line['data']['banner']) || (line['data'] &&  line['data']['xssh'])){
+        if(line['banner']
+        || (line['data'] && line['data']['telnet'])
+        || (line['data'] && line['data']['banner'])
+        || (line['data'] &&  line['data']['xssh'])
+        || (line['data'] && line['data']['http'])){
           //Old and new Censys formats
           // TODO look at all new data types...
           //console.error("Censys file!");
@@ -387,10 +391,13 @@ function ProcessBanners(inputFile, results_write_stream){
             line = line['data']['telnet']['banner'];
           } else if(line['data'] && line['data']['xssh'] && line['data']['xssh']["server_id"]){
             line = line['data']['xssh']["server_id"]['raw'];
+          } else if(line['data'] && line['data']['http'] && line['data']['http'] && line['data']['http']["response"]['headers'] && line['data']['http']["response"]['headers']['server']){
+            line = line['data']['http']["response"]['headers']['server']
           } else {
             line = line['banner'] ? line['banner'] : line['data']['banner'];
           }
           line = remove_non_ascii(line);
+          //console.log(line)
         } else {
           //console.error("maybe shodan array?!");
           if(line['matches']){
@@ -524,6 +531,7 @@ function BannerToCPE(banner, results_write_stream, otherMatch, ip, port){
         SafeEncode(best_match['best_product_version_weight']) +"\",\""+ SafeEncode(best_match['best_product_leaf_diff'])+"\",\"" +
         SafeEncode(best_match['best_product_sub_leaf_diff'])+"\",\""+ SafeEncode(otherMatch)+"\",\""+ SafeEncode(nmapMatch)+"\",\"" +
         SafeEncode(banner_hash) +"\",\"" + SafeEncode(bannerMatching.banner)  +"\"";
+      //console.log(results_write_stream);
       WriteToStream(outline, results_write_stream);
 
       if(SHOW_STDOUT) console.log(outline);
