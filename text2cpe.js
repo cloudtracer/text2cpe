@@ -356,12 +356,15 @@ function ProcessBanners(inputFile, results_write_stream){
   var ip;
   var port;
   lineReader.on('line', function (line) {
-    //console.log('Line from file:', line);
+    console.log('Line from file:', line);
     var otherMatch = "";
-    try {
-      line = JSON.parse(line);
-    } catch(error) {
-      isValidJSON = false;
+    if(line && line != ""){
+      try {
+        line = JSON.parse(line);
+      } catch(error) {
+        console.log("Error: " +error);
+        isValidJSON = false;
+      }
     }
 
     if(isValidJSON){
@@ -398,9 +401,21 @@ function ProcessBanners(inputFile, results_write_stream){
           }
           line = remove_non_ascii(line);
           //console.log(line)
-        } else {
-          //console.error("maybe shodan array?!");
-          if(line['matches']){
+        } else if(line['matches'] && line['ads']){
+          console.log("This is zoomeye");
+          var matches_length = line['matches'].length;
+          for(var i =0; i < matches_length; i++){
+            var match_line = line['matches'][i];
+            console.log("zoomeye line!");
+            if(match_line['raw_data'] && typeof match_line['raw_data'] == 'string' && match_line['raw_data'] != ""){
+              ip = match_line['ip'];
+              port = match_line['portinfo']['port'];
+              match_line = match_line['raw_data'].substring(0, 512);
+              BannerToCPE(match_line.toLowerCase(), results_write_stream, otherMatch, ip, port);
+            }
+          }
+         } else {
+           if(line['matches']){
             //console.error("Shodan Array File!");
             var matches_length = line['matches'].length;
             for(var i =0; i < matches_length; i++){
